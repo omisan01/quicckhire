@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Environment files (CRITICAL: NEVER COMMIT SECRETS)
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+
+# Prisma
+# Note: Keep prisma/migrations committed, but ignore local generated client if built to custom path
+# src/generated/
+
+# Logs & Coverage
+logs/
+*.log
+coverage/
+
+# Uploads / Temp files (e.g. Multer local uploads)
+uploads/
+temp/
+/src/generated/prisma
