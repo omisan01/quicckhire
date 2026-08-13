@@ -1,6 +1,11 @@
 import jwt from "jsonwebtoken";
 import { redis } from "@/config/redis";
 import { JwtPayload } from "@/types/auth.types";
+import { v4 as uuidv4 } from 'uuid';
+
+export interface RefreshTokenPayload extends JwtPayload {
+    tokenId: string;
+}
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'fallback_access';
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'fallback_refresh';
@@ -13,8 +18,10 @@ export const generateAccessToken = (payload: JwtPayload): string => {
 }
 
 /** Generate long lived Refresh Token */
-export const generateRefreshToken = (payload: JwtPayload): string => {
-    return jwt.sign(payload, REFRESH_SECRET, { expiresIn: '7d' })
+export const generateRefreshToken = (payload: JwtPayload): { token: string; tokenId: string } => {
+    const tokenId = uuidv4();
+    const token = jwt.sign({ ...payload, tokenId }, REFRESH_SECRET, { expiresIn: '7d' })
+    return { token, tokenId }
 }
 
 /** Verify an Access Token */
@@ -23,33 +30,48 @@ export const verifyAccessToken = (token: string): JwtPayload => {
 }
 
 /** Verify a Refresh Token */
-export const verifyRefreshToken = (token: string): JwtPayload => {
-    return jwt.verify(token, REFRESH_SECRET) as JwtPayload
+export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
+    return jwt.verify(token, REFRESH_SECRET) as RefreshTokenPayload
 }
 
 /**
  * Stores a user's Refresh Token in Redis mapped to their userId.
- * Key format: "refresh_token:<userId>"
+ * Key format: "refresh_token:<userId>:<tokenId>"
  */
-export const storeRefreshTokenInRedis = async (userId: string, refreshToken: string): Promise<void> => {
-    const key = `refresh_token:${userId}`
+export const storeRefreshTokenInRedis = async (userId: string, refreshToken: string, tokenId: string): Promise<void> => {
+    const key = `refresh_token:${userId}:${tokenId}`
     await redis.set(key, refreshToken, {
         expiration: { type: "EX", value: REFRESH_TOKEN_TTL }
     })
 }
 
 /**
- * Retrieves the stored Refresh Token from Redis for a given user.
+ * Validates a user's Refresh Token by checking if it exists in Redis.
+ * Returns the token if valid, or null if invalid.
  */
-export const getRefreshTokenFromRedis = async (userId: string): Promise<string | null> => {
-    const key = `refresh_token:${userId}`;
-    return await redis.get(key)
+export const validateRefreshTokenInRedis = async (userId: string, tokenId: string): Promise<boolean> => {
+    const key = `refresh_token:${userId}:${tokenId}`
+    const exists = await redis.exists(key)
+
+    return exists !== null
 }
 
 /**
  * Removes a user's Refresh Token from Redis (used during Logout / Token Revocation).
  */
-export const deleteRefreshTokenFromRedis = async (userId: string): Promise<void> => {
-    const key = `refresh_token:${userId}`;
+export const deleteRefreshTokenFromRedis = async (userId: string, tokenId: string): Promise<void> => {
+    const key = `refresh_token:${userId}:${tokenId}`;
     await redis.del(key)
+}
+
+/**
+ * Security measure: Deletes all refresh tokens for a user from Redis (used during Logout / Token Revocation) token reuse/theft is detected..
+
+ */
+export const deleteAllRefreshTokensForUser = async (userId: string): Promise<void> => {
+    const pattern = `refresh_token:${userId}:*`;
+    const keys = await redis.keys(pattern);
+    if (keys.length > 0) {
+        await redis.del(keys);
+    }
 }
