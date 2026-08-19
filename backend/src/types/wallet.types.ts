@@ -16,7 +16,6 @@ export interface WalletBalanceResponse {
     id: string;
     balance: number;
     userId: string;
-    currency: string;
     createdAt: Date;
     updatedAt: Date
 }
@@ -26,7 +25,6 @@ export interface WalletTransactionItem {
     walletId: string;
     amount: number;
     type: TransactionType;
-    status: TransactionStatus;
     description: string | null;
     referenceId: string | null;
     createdAt: Date

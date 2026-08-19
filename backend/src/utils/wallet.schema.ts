@@ -34,7 +34,6 @@ export const TransactionQuerySchema = z.object({
         .transform((val) => (val ? parseInt(val, 10) : 10))
         .refine((val) => val > 0 && val <= 50, { message: 'Limit must be between 1 and 50' }),
     type: z.enum(TransactionType).optional(),
-    status: z.enum(TransactionStatus).optional(),
 });
 
 export type DepositDTO = z.infer<typeof DepositSchema>;

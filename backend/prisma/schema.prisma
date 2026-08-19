@@ -176,9 +176,10 @@ enum ContractStatus {
 
 enum TransactionType {
   DEPOSIT
+  WITHDRAWAL
   ESCROW_LOCK
-  PAYOUT
-  REFUND
+  ESCROW_RELEASE
+  ESCROW_REFUND
 }
 
 enum Role {
